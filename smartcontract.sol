@@ -1,13 +1,14 @@
+pragma solidity ^0.4.23;
 contract supplychain{
-    mapping(string=>address)last_access;
-    mapping(string=>address)next_access;
-    mapping(string=>address)retailer;
-    mapping(string=>bool)sold;
+    mapping(uint=>address)last_access;
+    mapping(uint=>address)next_access;
+    mapping(uint=>address)retailer;
+    mapping(uint=>bool)sold;
     struct meds {
         string medName;
         address manufacture;
         string manufactureName;
-        string id;
+        uint id;
     }
         struct Manufacturedetails{
         string name;
@@ -40,10 +41,10 @@ contract supplychain{
     mapping(address=>bool) manaprove;
     mapping(address=>bool) distaprove;
     mapping(address=>bool) retailaprove;
-    mapping(string=>Manufacturedetails) md;
-    mapping(string=>retaildetails) rd;
-    mapping(string=>Distdetails) dd;
-     mapping (string => meds) med;
+    mapping(uint=>Manufacturedetails) md;
+    mapping(uint=>retaildetails) rd;
+    mapping(uint=>Distdetails) dd;
+     mapping (uint => meds) med;
      meds medsData;
      retaildetails retaildetailsData;
      Manufacturedetails ManufacturedetailsData;
@@ -69,60 +70,66 @@ contract supplychain{
          uint24 a = userDetails[_user].stock["crocin"];
          return(tmpData.name,tmpData.role,tmpData.location,tmpData.contactNo,a);
      }
-     function getmed(string _id) public  view returns(string medName,
+     function getmed(uint _id) public  view returns(string medName,
                              string manufactureName,
                              address manufacture) {
         meds memory tmpData = med[_id];
         return (tmpData.medName,tmpData.manufactureName,tmpData.manufacture);
     }  
-    function setmed(string _medName,string _manufactureName,string _id,address _to,string _distributorName) public{
+    function setmed(string _medName,string _manufactureName,uint sid,uint lid,address _to,string _distributorName) public{
         require(manaprove[msg.sender]==true);
         require(distaprove[_to]==true);
-            medsData.medName=_medName;
+        medsData.medName=_medName;
         medsData.manufactureName=_manufactureName;
         medsData.manufacture=msg.sender;
-        med[_id]= medsData;
-        sold[_id]=false;
         ManufacturedetailsData.name=_manufactureName;
         ManufacturedetailsData.to=_to;
         ManufacturedetailsData.distributorName=_distributorName;
         ManufacturedetailsData.departureDateTime=now;
-        md[_id]=ManufacturedetailsData;
-        last_access[_id]=msg.sender;
-        next_access[_id]=_to;
-        userDetails[msg.sender].stock[_medName]++;
+        for(uint i=sid;i<=lid;i++){
+            
+        med[i]= medsData;
+        sold[i]=false;
+        md[i]=ManufacturedetailsData;
+        last_access[i]=msg.sender;
+        next_access[i]=_to;
+        userDetails[msg.sender].stock[_medName]++;}
         }
-    function acceptdist(string _id,address _from)public{
+    function acceptdist(uint sid,uint lid,address _from)public{
         require(manaprove[_from]==true);
-        require(_from==last_access[_id]);
-         require(distaprove[msg.sender]==true);
-          require(msg.sender==next_access[_id]);
-          last_access[_id]=msg.sender;
-           userDetails[msg.sender].stock[med[_id].medName]++;
-            userDetails[_from].stock[med[_id].medName]--;
+        require(distaprove[msg.sender]==true);
+               for(uint i=sid;i<=lid;i++){
+        require(_from==last_access[i]);
+          require(msg.sender==next_access[i]);
+          last_access[i]=msg.sender;
+           userDetails[msg.sender].stock[med[i].medName]++;
+            userDetails[_from].stock[med[i].medName]--;
+        }
        }
-    function setdistdetails(address _to,string _name,string _id) public {
+    function setdistdetails(address _to,string _name,uint sid,uint lid) public {
         require(distaprove[msg.sender]==true);
         require(retailaprove[_to]==true);
-        require(msg.sender==next_access[_id]);
-        require(userDetails[msg.sender].stock[med[_id].medName]>=1);
         DistdetailsData.to=_to;
         DistdetailsData.name=_name;
         DistdetailsData.departureDateTime=now;
         DistdetailsData.dist=msg.sender;
-        dd[_id]=DistdetailsData;
-        last_access[_id]=msg.sender;
-        next_access[_id]=_to;
+               for(uint i=sid;i<=lid;i++){
+        require(msg.sender==next_access[i]);
+        require(userDetails[msg.sender].stock[med[i].medName]>=1);
+        dd[i]=DistdetailsData;
+        last_access[i]=msg.sender;
+        next_access[i]=_to;
+               }
     }
-    function getdistdetails(string _id)public view returns(string distname,address r,uint256 time,address d){
+    function getdistdetails(uint _id)public view returns(string distname,address r,uint256 time,address d){
         Distdetails memory tmpData=dd[_id];
         return(tmpData.name,tmpData.to,tmpData.departureDateTime,tmpData.dist);
     }
-    function getmandetails(string _id)public view returns(string _name,address _to,string _distributorName,uint256 time){
+    function getmandetails(uint _id)public view returns(string _name,address _to,string _distributorName,uint256 time){
         Manufacturedetails memory tmpData=md[_id];
          return(tmpData.name,tmpData.to,tmpData.distributorName,tmpData.departureDateTime);
     }
-       function setretaildetails(string _id,string _name,address _dist)public{
+       function setretaildetails(uint _id,string _name,address _dist)public{
         require(retailaprove[msg.sender]==true);
         require(distaprove[_dist]==true);
         require(_dist==last_access[_id]);
@@ -135,11 +142,11 @@ contract supplychain{
         userDetails[msg.sender].stock[med[_id].medName]++;
             userDetails[_dist].stock[med[_id].medName]--;
        }
-    function getretaildetails(string _id) public view returns(string _name,address _dist,address _own){
+    function getretaildetails(uint _id) public view returns(string _name,address _dist,address _own){
         retaildetails memory tmpdata=rd[_id];
         return(tmpdata.name,tmpdata.dist,tmpdata.own);
     }
-    function sell(string _id)public{
+    function sell(uint _id)public{
         require(retailer[_id]==msg.sender);
         require(userDetails[msg.sender].stock[med[_id].medName]>=1);
         require(sold[_id]==false);
