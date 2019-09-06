@@ -24,8 +24,6 @@ contract supplychain{
     }
      struct Distdetails{
         string name;
-        address to;
-        uint256 departureDateTime;
         address dist;
     }
     
@@ -98,36 +96,33 @@ contract supplychain{
     function acceptdist(uint sid,uint lid,address _from)public{
         require(manaprove[_from]==true);
         require(distaprove[msg.sender]==true);
+        DistdetailsData.name=userDetails[msg.sender].name;
+        DistdetailsData.dist=msg.sender;
                for(uint i=sid;i<=lid;i++){
         require(_from==last_access[i]);
           require(msg.sender==next_access[i]);
           last_access[i]=msg.sender;
+          dd[i]=DistdetailsData;
            userDetails[msg.sender].stock[med[i].medName]++;
             userDetails[_from].stock[med[i].medName]--;
         }
        }
-    function setdistdetails(address _to,string _name,uint sid,uint lid) public {
+    function setdistdetails(address _to,uint sid,uint lid) public {
         require(distaprove[msg.sender]==true);
         require(retailaprove[_to]==true);
-        DistdetailsData.to=_to;
-        DistdetailsData.name=_name;
-        DistdetailsData.departureDateTime=now;
-        DistdetailsData.dist=msg.sender;
                for(uint i=sid;i<=lid;i++){
         require(msg.sender==next_access[i]);
         require(userDetails[msg.sender].stock[med[i].medName]>=1);
-        dd[i]=DistdetailsData;
-        last_access[i]=msg.sender;
         next_access[i]=_to;
                }
     }
-    function getdistdetails(uint _id)public view returns(string distname,address r,uint256 time,address d){
+    function getdistdetails(uint _id)public view returns(string distname,address d){
         Distdetails memory tmpData=dd[_id];
-        return(tmpData.name,tmpData.to,tmpData.departureDateTime,tmpData.dist);
+        return(tmpData.name,tmpData.dist);
     }
-    function getmandetails(uint _id)public view returns(string _name,address _to,string _distributorName,uint256 time){
+    function getmandetails(uint _id)public view returns(string _name,address _to,uint256 time){
         Manufacturedetails memory tmpData=md[_id];
-         return(tmpData.name,tmpData.to,tmpData.distributorName,tmpData.departureDateTime);
+         return(tmpData.name,tmpData.to,tmpData.departureDateTime);
     }
        function setretaildetails(uint _id,string _name,address _dist)public{
         require(retailaprove[msg.sender]==true);
