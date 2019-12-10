@@ -4,6 +4,7 @@ contract supplychain{
     mapping(uint=>address)next_access;
     mapping(uint=>address)retailer;
     mapping(uint=>bool)sold;
+    address admin=msg.sender;
     mapping(uint=>bool)expired;
     struct meds {
         string medName;
@@ -49,12 +50,15 @@ contract supplychain{
          if(uint(keccak256(abi.encodePacked(_role))) == uint(keccak256(abi.encodePacked("Manufacturer")))){
           manaprove[_user]=true;
              }
-        if(uint(keccak256(abi.encodePacked(_role))) == uint(keccak256(abi.encodePacked("Distributer")))){
+       else if(uint(keccak256(abi.encodePacked(_role))) == uint(keccak256(abi.encodePacked("Distributer")))){
           distaprove[_user]=true;
              }
-        if(uint(keccak256(abi.encodePacked(_role))) == uint(keccak256(abi.encodePacked("Retailer")))){
+        else if(uint(keccak256(abi.encodePacked(_role))) == uint(keccak256(abi.encodePacked("Retailer")))){
           retailaprove[_user]=true;
              }
+            else{
+                revert("enter valid role");
+            }
          userData.role=_role;
          userData.name=name;
          userDetails[_user]=userData;
@@ -66,17 +70,11 @@ contract supplychain{
        
         return (med[_id].medName,md[_id].man,md[_id].name,dd[_id].dist,dd[_id].name,rd[_id].name,sold[_id]);
     }  
-    function setmed(string _medName,uint sid,uint lid,address _to,uint256 expiryd ) public  returns(int8 st){
+    function setmed(string _medName,uint sid,uint lid,address _to,uint256 expiryd ) public {
        
-        if(manaprove[msg.sender]==false){
-            return 0;
-        }
-         
-         if(distaprove[_to]==false){
-            return 1;
-        }
-        require(manaprove[msg.sender]==true);
-        require(distaprove[_to]==true);
+        require(manaprove[msg.sender]==true,"Sender is not manufacturer");
+        
+        require(distaprove[_to]==true,"Reciever is not valid Distributer");
         medsData.medName=_medName;
        medsData.exp=now+expiryd*1 days;
         
@@ -90,28 +88,29 @@ contract supplychain{
         last_access[i]=msg.sender;
         next_access[i]=_to;
         userDetails[msg.sender].stock[_medName]++;}
-        return 2;
         }
-        function checkex(uint id)public view returns(bool res){
+        function checkex(uint id)public returns(bool res){
             if(now>=med[id].exp){
-                
-                return true;
+                expired[id]==true;
+                next_access[id]=admin;
+                return false;
             }
             else{
                 
-                return false;
+                return true;
             }
         }
     function acceptdist(uint sid,uint lid,address _from)public{
-        require(manaprove[_from]==true);
-        require(distaprove[msg.sender]==true);
+        require(manaprove[_from]==true,"Sender is not manufacturer");
+        require(distaprove[msg.sender]==true,"Reciever is distributer");
         
         DistdetailsData.dist=msg.sender;
         DistdetailsData.name=userDetails[msg.sender].name;
                for(uint i=sid;i<=lid;i++){
-        require(_from==last_access[i]);
-          require(msg.sender==next_access[i]);
-           require(sold[i]==false);
+                   require(checkex(i)==true,"medicine expired");
+        require(_from==last_access[i],"medicine came from someone else");
+          require(msg.sender==next_access[i],"Unauthorized to access this medicine");
+           require(sold[i]==false,"medicine already sold");
           last_access[i]=msg.sender;
           dd[i]=DistdetailsData;
            userDetails[msg.sender].stock[med[i].medName]++;
@@ -119,24 +118,27 @@ contract supplychain{
         }
        }
     function setdistdetails(address _to,uint sid,uint lid) public {
-        require(distaprove[msg.sender]==true);
-        require(retailaprove[_to]==true);
+        require(distaprove[msg.sender]==true,"NOt a distributer");
+        require(retailaprove[_to]==true,"Not a retailer");
                for(uint i=sid;i<=lid;i++){
-        require(msg.sender==next_access[i]);
-         require(sold[i]==false);
-        require(userDetails[msg.sender].stock[med[i].medName]>=1);
+                   require(checkex(i)==true,"medicine expired");
+        require(msg.sender==last_access[i],"Unauthorized to access this medicine");
+        require(msg.sender==next_access[i],"Unauthorized to access this medicine");
+         require(sold[i]==false,"medicine already sold");
+        require(userDetails[msg.sender].stock[med[i].medName]>=1,"Medicine not in stock");
         next_access[i]=_to;
                }
     }
     
     
        function setretaildetails(uint sid,uint lid,address _dist)public{
-        require(retailaprove[msg.sender]==true);
-        require(distaprove[_dist]==true);
+        require(retailaprove[msg.sender]==true,"Not a retailer");
+       
         for(uint i=sid;i<=lid;i++){
-        require(_dist==last_access[i]);
-        require(sold[i]==false);
-        require(msg.sender==next_access[i]);
+            require(checkex(i)==true,"medicine expired");
+        require(_dist==last_access[i],"medicine came from someone else");
+        require(sold[i]==false,"medicine already sold");
+        require(msg.sender==next_access[i],"Unauthorized to access this medicine");
         retaildetailsData.own=msg.sender;
         retaildetailsData.name=userDetails[msg.sender].name;
         rd[i]=retaildetailsData;
@@ -147,9 +149,10 @@ contract supplychain{
        }
    
     function sell(uint _id)public{
-        require(retailer[_id]==msg.sender);
-        require(userDetails[msg.sender].stock[med[_id].medName]>=1);
-        require(sold[_id]==false);
+        require(checkex(_id)==true,"medicine expired");
+        require(retailer[_id]==msg.sender,"Unauthorized to access this medicine");
+   
+        require(sold[_id]==false,"medicine already sold");
         sold[_id]=true;
         userDetails[msg.sender].stock[med[_id].medName]--;
     }
