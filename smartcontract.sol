@@ -4,11 +4,9 @@ contract supplychain{
     mapping(uint=>address)next_access;
     mapping(uint=>address)retailer;
     mapping(uint=>bool)sold;
-    address admin=msg.sender;
-    mapping(uint=>bool)expired;
     struct meds {
         string medName;
-        
+        string expdate;
         uint id;
         uint256 exp;
     }
@@ -66,22 +64,28 @@ contract supplychain{
      
      function getmed(uint _id) public  view returns(string medName,
                              
-                             address manufacture,string mname,address d,string dname,string rname,bool soldstatus) {
+                             string mname,string dname,string rname,bool soldstatus,bool expsts,string expdate) {
        
-        return (med[_id].medName,md[_id].man,md[_id].name,dd[_id].dist,dd[_id].name,rd[_id].name,sold[_id]);
+       
+       bool a=false;
+       if(now>=med[_id].exp){
+           a==true;
+       }
+        string memory ed = med[_id].expdate;
+        return (med[_id].medName,md[_id].name,dd[_id].name,rd[_id].name,sold[_id],a,ed);
     }  
-    function setmed(string _medName,uint sid,uint lid,address _to,uint256 expiryd ) public {
+    function setmed(string _medName,uint sid,uint lid,address _to,uint256 expiryd ,string expirydate) public {
        
         require(manaprove[msg.sender]==true,"Sender is not manufacturer");
         
         require(distaprove[_to]==true,"Reciever is not valid Distributer");
         medsData.medName=_medName;
        medsData.exp=now+expiryd*1 days;
-        
+        medsData.expdate=expirydate;
        ManufacturedetailsData.man=msg.sender;
         ManufacturedetailsData.name=userDetails[msg.sender].name;
         for(uint i=sid;i<=lid;i++){
-         expired[i]=false;   
+         
         med[i]= medsData;
         sold[i]=false;
         md[i]=ManufacturedetailsData;
@@ -89,10 +93,10 @@ contract supplychain{
         next_access[i]=_to;
         userDetails[msg.sender].stock[_medName]++;}
         }
-        function checkex(uint id)public returns(bool res){
+        function checkex(uint id)public view returns(bool res){
             if(now>=med[id].exp){
-                expired[id]==true;
-                next_access[id]=admin;
+               
+               
                 return false;
             }
             else{
@@ -115,6 +119,17 @@ contract supplychain{
           dd[i]=DistdetailsData;
            userDetails[msg.sender].stock[med[i].medName]++;
             userDetails[_from].stock[med[i].medName]--;
+        }
+       }
+       function decline(uint sid,uint lid,address _from)public{
+       
+               for(uint i=sid;i<=lid;i++){
+                   
+        require(_from==last_access[i],"medicine came from someone else");
+          require(msg.sender==next_access[i],"Unauthorized to access this medicine");
+           require(sold[i]==false,"medicine already sold");
+         next_access[i]=last_access[i];
+         last_access[i]=msg.sender;
         }
        }
     function setdistdetails(address _to,uint sid,uint lid) public {
@@ -155,5 +170,12 @@ contract supplychain{
         require(sold[_id]==false,"medicine already sold");
         sold[_id]=true;
         userDetails[msg.sender].stock[med[_id].medName]--;
+    }
+    function stockcheck(address[] readd,string medname)public view returns(uint24[] st){
+       uint24[] memory a = new uint24[](readd.length);
+        for(uint24 i=0;i<readd.length;i++){
+           a[i]=userDetails[readd[i]].stock[medname];
+        }
+        return a;
     }
 }
